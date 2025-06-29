@@ -1,6 +1,7 @@
 from fastapi import FastAPI
-from typing import Dict, Any
+from typing import Dict, Any, Union
 from enum import Enum
+from pydantic import BaseModel
 
 # Enum class
 class ModelName(str, Enum):
@@ -34,3 +35,11 @@ async def get_model(model_name: ModelName):
         return {"model_name": model_name, "message": "LeCNN all the images"}
 
     return {"model_name": model_name, "message": "Have some residuals"}
+
+# クエリパラメーター
+@app.get("/user/items/{item_id}")
+async def read_user_item(
+    item_id: str, needy: str, skip: int = 0, limit: Union[int, None] = None
+): # Noneでオプショナル、なければ必須。デフォルト値指定も可能
+    item = {"item_id": item_id, "needy": needy, "skip": skip, "limit": limit}
+    return item
