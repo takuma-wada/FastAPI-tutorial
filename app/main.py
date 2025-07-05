@@ -1,7 +1,7 @@
-from fastapi import FastAPI
-from typing import Dict, Any
+from fastapi import Body, FastAPI, Query, Path
+from typing import Dict, Any, Annotated, Literal
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # Enum class
@@ -14,9 +14,21 @@ class ModelName(str, Enum):
 # リクエストbody sample パラメーターと考え方は同じ version 3.10
 class Item(BaseModel):
     name: str
-    description: str | None = None
+    description: str | None = Field(
+        # open apiに説明を記載できる
+        default=None, title="The description of the item", max_length=300
+    )
     price: float
     tax: float | None = None
+
+
+class FilterParams(BaseModel):
+    model_config = {"extra": "forbid"}  # 余分なパラメータを制限する
+
+    limit: int = Field(100, gt=0, le=100)
+    offset: int = Field(0, ge=0)
+    order_by: Literal["created_at", "updated_at"] = "created_at"
+    tags: list[str] = []
 
 
 # FastAPIアプリケーションのインスタンスを作成
@@ -74,3 +86,51 @@ async def create_item(item: Item):
 @app.put("/items/{item_id}")
 async def update_item(item_id: int, item: Item):
     return {"item_id": item_id, **item.dict()}
+
+
+# クエリパラメータと文字列の検証
+@app.get("/items/")
+async def read_items(q: Annotated[str | None, Query(max_length=50)] = None):
+    results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+    if q:
+        results.update({"q": q})
+    return
+
+
+# 正規表現の追加
+@app.get("/regex-items/")
+async def read_regex_items(
+    q: Annotated[str | None, Query(
+        min_length=3,
+        max_length=50,
+        pattern="^fixedquery$"
+    )] = None
+):
+    results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+    if q:
+        results.update({"q": q})
+    return
+
+
+# クエリパラメータモデル
+@app.get("/query-items/")
+async def read_query_items(filter_query: Annotated[FilterParams, Query()]):
+    return filter_query
+
+
+# ファストAPIボディ - 複数のパラメータ
+@app.put("/request-body/{user_id}")
+async def user_data(
+    user_id: Annotated[
+        int,
+        Path(title="The ID of the item to get", ge=0, le=1000)
+    ],
+    q: str | None = None,
+    item: Annotated[Item | None, Body(embed=True)] = None
+):
+    results = {"user_id": user_id}
+    if q:
+        results.update({"q": q})
+    if item:
+        results.update({"item": item})
+    return results
