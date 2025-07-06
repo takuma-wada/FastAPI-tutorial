@@ -1,4 +1,4 @@
-from fastapi import Body, FastAPI, Query, Path
+from fastapi import Cookie, Body, FastAPI, Query, Path, Header
 from typing import Dict, Any, Annotated, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -16,7 +16,9 @@ class Item(BaseModel):
     name: str
     description: str | None = Field(
         # open apiに説明を記載できる
-        default=None, title="The description of the item", max_length=300
+        default=None,
+        title="The description of the item",
+        max_length=300,
     )
     price: float
     tax: float | None = None
@@ -29,6 +31,22 @@ class FilterParams(BaseModel):
     offset: int = Field(0, ge=0)
     order_by: Literal["created_at", "updated_at"] = "created_at"
     tags: list[str] = []
+
+
+# クッキーパラメータモデル
+class Cookies(BaseModel):
+    session_id: str
+    fatebook_tracker: str | None = None
+    googall_tracker: str | None = None
+
+
+# ヘッダーパラメータ
+class CommonHeaders(BaseModel):
+    host: str
+    save_data: bool
+    if_modified_since: str | None = None
+    traceparent: str | None = None
+    x_tag: list[str] = []
 
 
 # FastAPIアプリケーションのインスタンスを作成
@@ -100,11 +118,9 @@ async def read_items(q: Annotated[str | None, Query(max_length=50)] = None):
 # 正規表現の追加
 @app.get("/regex-items/")
 async def read_regex_items(
-    q: Annotated[str | None, Query(
-        min_length=3,
-        max_length=50,
-        pattern="^fixedquery$"
-    )] = None
+    q: Annotated[
+        str | None, Query(min_length=3, max_length=50, pattern="^fixedquery$")
+    ] = None,
 ):
     results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
     if q:
@@ -121,12 +137,9 @@ async def read_query_items(filter_query: Annotated[FilterParams, Query()]):
 # ファストAPIボディ - 複数のパラメータ
 @app.put("/request-body/{user_id}")
 async def user_data(
-    user_id: Annotated[
-        int,
-        Path(title="The ID of the item to get", ge=0, le=1000)
-    ],
+    user_id: Annotated[int, Path(title="The ID of the item to get", ge=0, le=1000)],
     q: str | None = None,
-    item: Annotated[Item | None, Body(embed=True)] = None
+    item: Annotated[Item | None, Body(embed=True)] = None,
 ):
     results = {"user_id": user_id}
     if q:
@@ -134,3 +147,15 @@ async def user_data(
     if item:
         results.update({"item": item})
     return results
+
+
+# クッキーパラメータ
+@app.get("/cookie-items/")
+async def read_cookie_items(ads_id: Annotated[Cookies, Cookie()] = None):
+    return {"ads_id": ads_id}
+
+
+# ヘッダーパラメータ
+@app.get("/header-items/")
+async def read_header_items(user_agent: Annotated[CommonHeaders, Header()] = None):
+    return {"User-Agent": user_agent}
