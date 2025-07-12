@@ -1,8 +1,23 @@
-from fastapi import Cookie, Body, FastAPI, Query, Path, Header, Form, File, UploadFile
+from fastapi import (
+    Cookie,
+    Body,
+    FastAPI,
+    Query,
+    Path,
+    Header,
+    Form,
+    File,
+    UploadFile,
+    HTTPException,
+)
 from typing import Dict, Any, Annotated, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from starlette.exceptions import (
+    RequestValidationError,
+    HTTPException as StarletteHTTPException,
+)
 
 
 # Enum class
@@ -70,9 +85,29 @@ async def read_root() -> Dict[str, str]:
     return {"message": "こんにちは, FastAPI!"}
 
 
+items = {"foo": "The Foo Wrestlers"}
+
+
+# 例外ハンドラのオーバーライド exceptionを渡すことでオーバライドできる。
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return PlainTextResponse(str(exc), status_code=400)
+
+
 # パスパラメータを持つエンドポイント
 @app.get("/items/{item_id}")
 async def read_item(item_id: int, q: str | None = None) -> Dict[str, Any]:
+    if item_id not in items:
+        raise HTTPException(
+            status_code=404,
+            detail="Item not found",
+            headers={"X-Error": "There goes my error"},
+        )
     return {"item_id": item_id, "q": q}
 
 
