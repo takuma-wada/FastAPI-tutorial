@@ -1,7 +1,8 @@
-from fastapi import Cookie, Body, FastAPI, Query, Path, Header
+from fastapi import Cookie, Body, FastAPI, Query, Path, Header, Form, File, UploadFile
 from typing import Dict, Any, Annotated, Literal
 from enum import Enum
 from pydantic import BaseModel, Field
+from fastapi.responses import HTMLResponse
 
 
 # Enum class
@@ -47,6 +48,13 @@ class CommonHeaders(BaseModel):
     if_modified_since: str | None = None
     traceparent: str | None = None
     x_tag: list[str] = []
+
+
+# フォームデータモデル
+class FormData(BaseModel):
+    username: str
+    password: str
+    model_config = {"extra": "forbid"}  # その他の項目を禁止する
 
 
 # FastAPIアプリケーションのインスタンスを作成
@@ -151,11 +159,53 @@ async def user_data(
 
 # クッキーパラメータ
 @app.get("/cookie-items/")
-async def read_cookie_items(ads_id: Annotated[Cookies, Cookie()] = None):
-    return {"ads_id": ads_id}
+async def read_cookie_items(cookies: Annotated[Cookies, Cookie()] = None) -> Cookies:
+    return cookies
 
 
 # ヘッダーパラメータ
 @app.get("/header-items/")
 async def read_header_items(user_agent: Annotated[CommonHeaders, Header()] = None):
     return {"User-Agent": user_agent}
+
+
+# ステータスコード
+@app.post("/status-code/", status_code=201)
+async def statusCode(name: str) -> Dict[str, str]:
+    return {"name": name}
+
+
+# フォームデータ
+@app.post("/login/")
+async def login(data: Annotated[FormData, Form()]):
+    return data
+
+
+# ファイル取得 小さなファイルの読み取りに適している。コンテンツ全体がメモリに保存される
+@app.post("/files/")
+async def create_file(file: Annotated[bytes, File()]):
+    return {"file_size": len(file)}
+
+
+# ファイル取得 最大サイズ制限まではメモリに保存され、この制限を超えるとディスクに保存される
+@app.post("/uploadfile/")
+async def create_upload_file(file: UploadFile):
+    return {"filename": file.filename}
+
+
+# 上二つのテスト用
+@app.get("/form")
+async def main():
+    content = """
+<body>
+<form action="/files/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+<form action="/uploadfiles/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+</body>
+    """
+    return HTMLResponse(content=content)
