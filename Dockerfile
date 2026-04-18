@@ -1,17 +1,23 @@
-# ベースとなるPythonイメージを指定
 FROM python:3.11-slim
 
-# 環境変数を設定
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=true
 
-# コンテナ内での作業ディレクトリを設定
-WORKDIR /code
+WORKDIR /src
 
-# 必要なライブラリをインストールするために requirements.txt をコピー
-COPY requirements.txt .
+# Poetry自体のインストール
+RUN pip install poetry
 
-# pipを使ってrequirements.txtに記載されたライブラリをインストール
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+# 依存関係ファイルのコピー
+COPY pyproject.toml poetry.lock* ./
 
-# アプリケーションコードをコンテナにコピー
-COPY ./app /code/app
+# ライブラリのインストール（ソースコードをコピーする前に行う！）
+RUN poetry install --no-root
+
+# アプリコードのコピー
+COPY ./app /src/app
+
+# 実行（compose側で上書きも可能）
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
