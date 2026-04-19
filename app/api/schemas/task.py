@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class TaskBase(BaseModel):
@@ -8,9 +9,9 @@ class TaskBase(BaseModel):
 class Task(TaskBase):
     id: int
     done: bool = Field(default=False, description="完了フラグ")
+    createdAt: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 
 class TaskCreate(TaskBase):
@@ -19,5 +20,13 @@ class TaskCreate(TaskBase):
 
 class TaskCreateResponse(TaskCreate):
     id: int
+
+    model_config = {"from_attributes": True}
+
+
+class TaskDoneResponse(TaskCreate):
+    id: int
+    done: bool = Field(default=True, description="完了フラグ")
+    createdAt: datetime
 
     model_config = {"from_attributes": True}

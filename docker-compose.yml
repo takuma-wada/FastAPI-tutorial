@@ -5,3 +5,34 @@ services:
       - "8000:8000"
     volumes:
       - .:/src
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/demo
+    depends_on:
+      - db
+  db:
+    image: postgres:17-alpine3.22
+    platform: linux/arm64
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  prisma_studio:
+    build: .
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/demo
+    # command を上書きして Studio を専用で動かす
+    command: prisma studio --port 5555 --browser none
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
